@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autonomous Parking — A* Search</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #f5f3ee;
+  --surface:  #ffffff;
+  --panel:    #faf9f6;
+  --border:   #e2ddd6;
+  --border2:  #cdc7be;
+  --text:     #1c1a17;
+  --muted:    #8a8378;
+  --faint:    #b8b2a8;
+
+  --blue:     #2d6be4;
+  --blue-bg:  #edf2fc;
+  --green:    #1a8c5e;
+  --green-bg: #eaf5f0;
+  --amber:    #b85c00;
+  --amber-bg: #fef3e6;
+  --red:      #c0392b;
+  --red-bg:   #fdecea;
+
+  --cell: 30px;
+  --radius: 6px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+}
+
+.logo-title {
+  font-family: 'Lora', serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.logo-sub {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.sep { width: 1px; height: 20px; background: var(--border); }
+
+.chip {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--panel);
+}
+.chip.active { background: var(--blue-bg); color: var(--blue); border-color: #b8cdf5; }
+.chip.done   { background: var(--green-bg); color: var(--green); border-color: #a8dcc8; }
+.chip.fail   { background: var(--red-bg); color: var(--red); border-color: #f0b8b2; }
+
+.ml { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 196px 1fr 216px;
+  overflow: hidden;
+}
+
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.ss { padding: 14px 14px; border-bottom: 1px solid var(--border); }
+
+.sl {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 10px;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  margin-bottom: 5px;
+  text-align: left;
+}
+.btn:hover { background: var(--bg); border-color: var(--border2); }
+.btn:active { transform: scale(0.99); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn.run   { background: var(--blue-bg);  color: var(--blue);  border-color: #b8cdf5; }
+.btn.run:hover   { background: #dce8fa; }
+.btn.rst   { background: var(--amber-bg); color: var(--amber); border-color: #f0ceaa; }
+.btn.rst:hover   { background: #fde8cc; }
+
+.kbd {
+  margin-left: auto;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--faint);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.tgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+
+.tbtn {
+  padding: 7px 4px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.12s;
+}
+.tbtn:hover { background: var(--bg); color: var(--text); }
+.tbtn.on { background: var(--blue-bg); color: var(--blue); border-color: #b8cdf5; }
+
+.srow { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.srow span { font-size: 11px; color: var(--faint); white-space: nowrap; }
+
+input[type=range] {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--blue);
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+}
+
+.stat { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 0; }
+.sk { font-size: 12px; color: var(--muted); }
+.sv { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; color: var(--text); }
+.sv.b { color: var(--blue); }
+.sv.g { color: var(--green); }
+.sv.a { color: var(--amber); }
+.sv.r { color: var(--red); }
+
+.prog { height: 3px; background: var(--border); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+.prog-i { height: 100%; width: 0%; border-radius: 2px; background: var(--blue); transition: width 0.15s; }
+
+.leg { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 7px; }
+.sw { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+
+.canvas-wrap {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.ctbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 7px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.ctsep { width: 1px; height: 16px; background: var(--border); }
+
+.canvas-scroll {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+canvas { display: block; cursor: crosshair; }
+
+.sbar {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
+.dot.searching { background: var(--amber); animation: blink 0.9s infinite; }
+.dot.animating { background: var(--blue);  animation: blink 0.9s infinite; }
+.dot.done      { background: var(--green); }
+.dot.fail      { background: var(--red); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.logpanel {
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+.lhead {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ltitle { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--faint); }
+.lclr { font-size: 11px; color: var(--blue); cursor: pointer; font-weight: 500; }
+.lbody { flex: 1; overflow-y: auto; padding: 6px 8px; }
+.le {
+  display: flex; gap: 8px;
+  padding: 5px 7px; border-radius: 4px; margin-bottom: 1px;
+  font-size: 12px; line-height: 1.5;
+}
+.le:hover { background: var(--bg); }
+.lts { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--faint); flex-shrink: 0; padding-top: 1px; }
+.lm  { color: var(--text); }
+.le.ok .lts   { color: var(--green); }
+.le.info .lts { color: var(--blue); }
+.le.warn .lts { color: var(--amber); }
+.le.err .lts  { color: var(--red); }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo-title">Parking Simulator</span>
+  <span class="logo-sub">A* Search</span>
+  <div class="sep"></div>
+  <span class="chip" id="h-trial">Percobaan: 0</span>
+  <span class="chip" id="h-status">Idle</span>
+  <div class="ml">Kecerdasan Buatan </div>
+</header>
+
+<div class="layout">
+
+  <div class="sidebar">
+
+    <div class="ss">
+      <div class="sl">Kontrol</div>
+      <button class="btn run" id="btn-run" onclick="startSolve()">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
+        Jalankan A*
+        <span class="kbd">SPC</span>
+      </button>
+      <button class="btn" id="btn-step" onclick="stepOnce()" disabled>
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 3h2v10H2V3zm4 0l8 5-8 5V3z"/></svg>
+        Satu Langkah
+        <span class="kbd">S</span>
+      </button>
+      <button class="btn" id="btn-pause" onclick="togglePause()" disabled>
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" id="picon"><path d="M4 2h3v12H4V2zm5 0h3v12H9V2z"/></svg>
+        <span id="plabel">Pause</span>
+        <span class="kbd">P</span>
+      </button>
+      <button class="btn rst" onclick="resetAll()">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 8a6 6 0 1 1 1.5 4"/><path d="M2 12V8h4"/></svg>
+        Reset
+        <span class="kbd">R</span>
+      </button>
+    </div>
+
+    <div class="ss">
+      <div class="sl">Mode Edit</div>
+      <div class="tgrid">
+        <div class="tbtn on" id="t-obs"  onclick="setTool('obs')">Obstacle</div>
+        <div class="tbtn"    id="t-era"  onclick="setTool('era')">Hapus</div>
+        <div class="tbtn"    id="t-car"  onclick="setTool('car')">Mobil</div>
+        <div class="tbtn"    id="t-goal" onclick="setTool('goal')">Goal</div>
+      </div>
+      <div style="font-size:11px;color:var(--faint);margin-top:8px;line-height:1.6">
+        Arrow ← → ↑ ↓ ubah arah mobil<br>Tekan 1–4 ganti mode cepat
+      </div>
+    </div>
+
+    <div class="ss">
+      <div class="sl">Kecepatan</div>
+      <div class="srow">
+        <span>Lambat</span>
+        <input type="range" min="1" max="20" value="6" id="spd" oninput="spd=+this.value;document.getElementById('spdv').textContent=this.value">
+        <span>Cepat</span>
+      </div>
+      <div style="text-align:center;font-size:11px;color:var(--faint);margin-top:4px"><span id="spdv">6</span>/20</div>
+    </div>
+
+    <div class="ss">
+      <div class="sl">Statistik</div>
+      <div class="stat"><span class="sk">Node dikunjungi</span><span class="sv a" id="s-exp">0</span></div>
+      <div class="stat"><span class="sk">Open set</span><span class="sv" id="s-open">0</span></div>
+      <div class="stat"><span class="sk">Panjang jalur</span><span class="sv g" id="s-path">—</span></div>
+      <div class="stat"><span class="sk">Langkah animasi</span><span class="sv b" id="s-step">—</span></div>
+      <div class="stat"><span class="sk">Waktu pencarian</span><span class="sv" id="s-time">—</span></div>
+      <div class="prog"><div class="prog-i" id="prog"></div></div>
+    </div>
+
+    <div class="ss">
+      <div class="sl">Legenda</div>
+      <div class="leg"><div class="sw" style="background:#dce8fa;border:1px solid #b8cdf5"></div>Open set</div>
+      <div class="leg"><div class="sw" style="background:#eae6df;border:1px solid #cec8be"></div>Closed set</div>
+      <div class="leg"><div class="sw" style="background:#d6f0e6;border:1px solid #a8dcc8"></div>Jalur optimal</div>
+      <div class="leg"><div class="sw" style="background:#2d6be4;border:1px solid #1a50b8"></div>Mobil AI</div>
+      <div class="leg"><div class="sw" style="background:#1a8c5e;border:1px solid #0f6040"></div>Spot parkir</div>
+      <div class="leg"><div class="sw" style="background:#c8c2b8;border:1px solid #b0aaa0"></div>Obstacle</div>
+    </div>
+
+  </div>
+
+  <div class="canvas-wrap">
+    <div class="ctbar">
+      <span id="tool-hint">🖱 Klik untuk tambah obstacle</span>
+      <div class="ctsep"></div>
+      <span>Pilih mode edit di sidebar kiri</span>
+      <span id="cpos" style="margin-left:auto;font-family:'DM Mono',monospace;font-size:11px">—</span>
+    </div>
+    <div class="canvas-scroll">
+      <canvas id="cv"></canvas>
+    </div>
+    <div class="sbar">
+      <div class="dot" id="dot"></div>
+      <span id="smsg">Siap — atur obstacle lalu tekan Space</span>
+    </div>
+  </div>
+
+  <div class="logpanel">
+    <div class="lhead">
+      <span class="ltitle">Log Percobaan</span>
+      <span class="lclr" onclick="clearLog()">Bersihkan</span>
+    </div>
+    <div class="lbody" id="log"></div>
+  </div>
+
+</div>
+
+<script>
+const COLS=22, ROWS=16, C=30, OX=18, OY=18;
+let grid = mk();
+let startPos={x:2,y:8,dir:0}, goalPos={x:18,y:8,dir:0};
+let tool='obs', spd=6;
+let openMap=new Map(), closedSet=new Set(), pathCells=[], fullPath=[];
+let vizSteps=[], vizIdx=0, carPos=null, paused=false, animating=false;
+let vizTimer=null, carTimer=null, trialN=0, curViz=null;
+
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+
+function mk() { return Array.from({length:ROWS},()=>new Array(COLS).fill(0)); }
+
+function init() {
+  cv.width=COLS*C+OX*2; cv.height=ROWS*C+OY*2;
+  addDef(); render();
+  addLog('Simulator siap. Tambah obstacle lalu tekan Space.','info');
+}
+
+function addDef() {
+  for(let x=5;x<=14;x++){grid[3][x]=1;grid[11][x]=1;}
+  for(let y=4;y<=10;y++){grid[y][16]=1;}
+  for(let x=7;x<=11;x++){grid[7][x]=1;}
+}
+
+function setTool(t){
+  tool=t;
+  ['obs','era','car','goal'].forEach(k=>document.getElementById('t-'+k).classList.toggle('on',k===t));
+  const h={obs:'Klik untuk tambah obstacle',era:'Klik untuk hapus cell',car:'Klik untuk pindah posisi mobil',goal:'Klik untuk pindah spot parkir'};
+  document.getElementById('tool-hint').textContent='🖱 '+h[t];
+}
+
+// A*
+const DIRS=[[1,0],[0,1],[-1,0],[0,-1]];
+function kk(x,y,d){return x+','+y+','+d;}
+function heur(x,y,d){return Math.abs(x-goalPos.x)+Math.abs(y-goalPos.y)+(d!==goalPos.dir?2:0);}
+
+function nbrs(x,y,d){
+  const o=[];
+  const[dx,dy]=DIRS[d];
+  const fx=x+dx,fy=y+dy;
+  if(fx>=0&&fx<COLS&&fy>=0&&fy<ROWS&&grid[fy][fx]===0)o.push([fx,fy,d]);
+  const bx=x-dx,by=y-dy;
+  if(bx>=0&&bx<COLS&&by>=0&&by<ROWS&&grid[by][bx]===0)o.push([bx,by,d]);
+  o.push([x,y,(d+3)%4]);
+  o.push([x,y,(d+1)%4]);
+  return o;
+}
+
+function runAstar(){
+  const steps=[], open=new Map(), closed=new Set(), gsc=new Map(), came=new Map();
+  const sk=kk(startPos.x,startPos.y,startPos.dir);
+  const h0=heur(startPos.x,startPos.y,startPos.dir);
+  open.set(sk,{x:startPos.x,y:startPos.y,dir:startPos.dir,g:0,f:h0});
+  gsc.set(sk,0);
+  let iter=0;
+  while(open.size>0&&iter<8000){
+    iter++;
+    let bk=null,bf=Infinity;
+    for(const[k,nd]of open)if(nd.f<bf){bf=nd.f;bk=k;}
+    const cur=open.get(bk);
+    open.delete(bk); closed.add(bk);
+    steps.push({type:'exp',cx:cur.x,cy:cur.y,open:new Map(open),closed:new Set(closed),nExp:closed.size,nOpen:open.size});
+    if(cur.x===goalPos.x&&cur.y===goalPos.y&&cur.dir===goalPos.dir){
+      const path=[];let ck=bk;
+      while(ck){const[px,py,pd]=ck.split(',').map(Number);path.unshift({x:px,y:py,dir:pd});ck=came.get(ck);}
+      steps.push({type:'found',path,open:new Map(open),closed:new Set(closed),nExp:closed.size});
+      return{steps,found:true,path};
+    }
+    for(const[nx,ny,nd]of nbrs(cur.x,cur.y,cur.dir)){
+      const nk=kk(nx,ny,nd);
+      if(closed.has(nk))continue;
+      const tg=(gsc.get(bk)??Infinity)+1;
+      if(tg<(gsc.get(nk)??Infinity)){
+        came.set(nk,bk);gsc.set(nk,tg);
+        const hv=heur(nx,ny,nd);
+        open.set(nk,{x:nx,y:ny,dir:nd,g:tg,f:tg+hv});
+      }
+    }
+  }
+  steps.push({type:'fail',open:new Map(open),closed:new Set(closed),nExp:closed.size});
+  return{steps,found:false,path:[]};
+}
+
+function startSolve(){
+  if(animating)return;
+  clearViz(); trialN++;
+  document.getElementById('h-trial').textContent='Percobaan: '+trialN;
+  document.getElementById('h-status').textContent='Mencari...';
+  document.getElementById('h-status').className='chip active';
+  const t0=performance.now();
+  const res=runAstar();
+  const ms=(performance.now()-t0).toFixed(1);
+  document.getElementById('s-time').textContent=ms+' ms';
+  vizSteps=res.steps; vizIdx=0; fullPath=res.found?res.path:[];
+  if(res.found){
+    document.getElementById('s-path').textContent=res.path.length;
+    addLog(`Percobaan #${trialN}: jalur ditemukan — ${res.path.length} langkah, ${ms} ms`,'ok');
+  } else {
+    addLog(`Percobaan #${trialN}: tidak ada jalur. Kurangi obstacle.`,'err');
+  }
+  setDot('searching'); setMsg('Memvisualisasikan proses A*...');
+  document.getElementById('btn-pause').disabled=false;
+  document.getElementById('btn-step').disabled=false;
+  runViz();
+}
+
+function runViz(){
+  if(vizTimer)clearTimeout(vizTimer);
+  if(vizIdx>=vizSteps.length){onVizEnd();return;}
+  if(paused)return;
+  applyStep(vizSteps[vizIdx]); vizIdx++;
+  vizTimer=setTimeout(runViz,Math.max(8,250/spd));
+}
+
+function applyStep(st){
+  curViz=st; openMap=st.open; closedSet=st.closed;
+  document.getElementById('s-exp').textContent=st.nExp;
+  document.getElementById('s-open').textContent=st.nOpen??0;
+  const pct=Math.round(vizIdx/vizSteps.length*100);
+  document.getElementById('prog').style.width=pct+'%';
+  if(st.type==='found')pathCells=st.path;
+  render();
+}
+
+function stepOnce(){
+  if(vizIdx>=vizSteps.length){onVizEnd();return;}
+  applyStep(vizSteps[vizIdx]); vizIdx++;
+}
+
+function onVizEnd(){
+  document.getElementById('btn-pause').disabled=true;
+  document.getElementById('btn-step').disabled=true;
+  document.getElementById('prog').style.width='100%';
+  if(fullPath.length>0){
+    addLog('Mulai animasi mobil menuju spot parkir...','info');
+    setDot('animating'); setMsg('Mobil bergerak ke spot parkir...');
+    animateCar();
+  } else {
+    setDot('fail'); setMsg('Tidak ditemukan jalur — coba kurangi obstacle');
+    document.getElementById('h-status').textContent='Gagal';
+    document.getElementById('h-status').className='chip fail';
+  }
+}
+
+function togglePause(){
+  paused=!paused;
+  document.getElementById('picon').innerHTML=paused
+    ?'<path d="M3 2.5l10 5.5-10 5.5V2.5z"/>'
+    :'<path d="M4 2h3v12H4V2zm5 0h3v12H9V2z"/>';
+  document.getElementById('plabel').textContent=paused?'Lanjut':'Pause';
+  if(!paused)runViz();
+}
+
+let carIdx=0;
+function animateCar(){
+  animating=true; carIdx=0; carPos={...fullPath[0]}; doCarFrame();
+}
+function doCarFrame(){
+  if(carIdx>=fullPath.length){
+    animating=false; carPos={...goalPos};
+    setDot('done'); setMsg('Parkir berhasil!');
+    document.getElementById('h-status').textContent='Selesai';
+    document.getElementById('h-status').className='chip done';
+    addLog(`Parkir selesai — ${fullPath.length} langkah, ${document.getElementById('s-exp').textContent} node dikunjungi.`,'ok');
+    render(); return;
+  }
+  carPos={...fullPath[carIdx]};
+  document.getElementById('s-step').textContent=(carIdx+1)+'/'+fullPath.length;
+  const pct=Math.round(carIdx/fullPath.length*100);
+  document.getElementById('prog').style.width=pct+'%';
+  document.getElementById('prog').style.background='var(--green)';
+  render(); carIdx++;
+  carTimer=setTimeout(doCarFrame,Math.max(30,500/spd));
+}
+
+function clearViz(){
+  if(vizTimer)clearTimeout(vizTimer);
+  if(carTimer)clearTimeout(carTimer);
+  openMap=new Map();closedSet=new Set();pathCells=[];fullPath=[];
+  vizSteps=[];vizIdx=0;carPos=null;animating=false;paused=false;curViz=null;
+  document.getElementById('s-exp').textContent='0';
+  document.getElementById('s-open').textContent='0';
+  document.getElementById('s-path').textContent='—';
+  document.getElementById('s-step').textContent='—';
+  document.getElementById('prog').style.width='0%';
+  document.getElementById('prog').style.background='var(--blue)';
+  document.getElementById('btn-pause').disabled=true;
+  document.getElementById('btn-step').disabled=true;
+}
+
+function resetAll(){
+  clearViz(); grid=mk(); startPos={x:2,y:8,dir:0}; goalPos={x:18,y:8,dir:0};
+  addDef(); trialN=0;
+  document.getElementById('h-trial').textContent='Percobaan: 0';
+  document.getElementById('h-status').textContent='Idle';
+  document.getElementById('h-status').className='chip';
+  document.getElementById('s-time').textContent='—';
+  setDot('idle'); setMsg('Siap — atur obstacle lalu tekan Space');
+  addLog('Grid direset ke default.','warn'); render();
+}
+
+// Render
+function render(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // board bg
+  ctx.fillStyle='#ede9e0';
+  ctx.fillRect(OX,OY,COLS*C,ROWS*C);
+
+  // closed
+  for(const k of closedSet){
+    const[cx,cy]=k.split(',').map(Number);
+    ctx.fillStyle='rgba(168,162,150,0.18)';
+    ctx.fillRect(OX+cx*C,OY+cy*C,C,C);
+  }
+  // open
+  for(const[k]of openMap){
+    const[cx,cy]=k.split(',').map(Number);
+    ctx.fillStyle='rgba(45,107,228,0.12)';
+    ctx.fillRect(OX+cx*C,OY+cy*C,C,C);
+  }
+  // path fill
+  if(pathCells.length>1){
+    for(const p of pathCells){
+      ctx.fillStyle='rgba(26,140,94,0.18)';
+      ctx.fillRect(OX+p.x*C+1,OY+p.y*C+1,C-2,C-2);
+    }
+    ctx.beginPath();
+    ctx.strokeStyle='rgba(26,140,94,0.5)';
+    ctx.lineWidth=1.5;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.moveTo(OX+pathCells[0].x*C+C/2,OY+pathCells[0].y*C+C/2);
+    for(let i=1;i<pathCells.length;i++)ctx.lineTo(OX+pathCells[i].x*C+C/2,OY+pathCells[i].y*C+C/2);
+    ctx.stroke();
+  }
+  // grid lines
+  ctx.strokeStyle='rgba(178,168,154,0.45)';ctx.lineWidth=0.5;
+  for(let r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(OX,OY+r*C);ctx.lineTo(OX+COLS*C,OY+r*C);ctx.stroke();}
+  for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(OX+c*C,OY);ctx.lineTo(OX+c*C,OY+ROWS*C);ctx.stroke();}
+  ctx.strokeStyle='#b0a898';ctx.lineWidth=1;
+  ctx.strokeRect(OX,OY,COLS*C,ROWS*C);
+  // obstacles
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c])drawObs(OX+c*C,OY+r*C);
+  // current node
+  if(curViz&&curViz.type==='exp'){
+    ctx.strokeStyle='rgba(184,92,0,0.65)';ctx.lineWidth=1.5;
+    ctx.strokeRect(OX+curViz.cx*C+1,OY+curViz.cy*C+1,C-2,C-2);
+  }
+  drawGoal(OX+goalPos.x*C,OY+goalPos.y*C,goalPos.dir);
+  const cp=carPos??startPos;
+  drawCar(OX+cp.x*C,OY+cp.y*C,cp.dir);
+}
+
+function drawObs(px,py){
+  ctx.fillStyle='#c4bfb5';
+  ctx.fillRect(px+1,py+1,C-2,C-2);
+  ctx.strokeStyle='rgba(148,140,130,0.3)';ctx.lineWidth=0.5;
+  for(let i=4;i<C;i+=8){
+    ctx.beginPath();ctx.moveTo(px+1,py+i);ctx.lineTo(px+i,py+1);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(px+C-1,py+i);ctx.lineTo(px+i,py+C-1);ctx.stroke();
+  }
+  ctx.strokeStyle='#ada8a0';ctx.lineWidth=0.5;
+  ctx.strokeRect(px+1,py+1,C-2,C-2);
+}
+
+function drawGoal(px,py,dir){
+  ctx.fillStyle='rgba(26,140,94,0.09)';
+  ctx.fillRect(px+1,py+1,C-2,C-2);
+  ctx.strokeStyle='#1a8c5e';ctx.lineWidth=1.5;
+  ctx.setLineDash([3,3]);
+  ctx.strokeRect(px+3,py+3,C-6,C-6);
+  ctx.setLineDash([]);
+  ctx.fillStyle='#1a8c5e';
+  ctx.font='bold 11px Outfit,sans-serif';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('P',px+C/2,py+C/2);
+  arrow(px+C/2,py+C/2,dir,'#1a8c5e',4,10);
+}
+
+function drawCar(px,py,dir){
+  const cx=px+C/2,cy=py+C/2;
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(dir*Math.PI/2);
+  const w=C-8,h=C-12;
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,0.07)';ctx.fillRect(-w/2+1,-h/2+2,w,h);
+  // body
+  ctx.fillStyle='#2d6be4';
+  rr(ctx,-w/2,-h/2,w,h,3);ctx.fill();
+  // roof
+  ctx.fillStyle='#1a50b8';ctx.fillRect(-w/2+3,-h/2+3,w-6,h/2-2);
+  // windshield
+  ctx.fillStyle='rgba(255,255,255,0.22)';ctx.fillRect(-w/2+4,-h/2+4,w-8,4);
+  // headlights
+  ctx.fillStyle='#f0c840';
+  ctx.fillRect(-w/2+2,h/2-4,4,3);ctx.fillRect(w/2-6,h/2-4,4,3);
+  // taillights
+  ctx.fillStyle='#c0392b';
+  ctx.fillRect(-w/2+2,-h/2+1,3,2);ctx.fillRect(w/2-5,-h/2+1,3,2);
+  // outline
+  ctx.strokeStyle='#1a50b8';ctx.lineWidth=1;
+  rr(ctx,-w/2,-h/2,w,h,3);ctx.stroke();
+  ctx.restore();
+  arrow(cx,cy,dir,'rgba(45,107,228,0.55)',4,C/2+4);
+}
+
+function arrow(cx,cy,dir,color,sz,dist){
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(dir*Math.PI/2);
+  ctx.fillStyle=color;ctx.beginPath();
+  ctx.moveTo(0,dist);ctx.lineTo(-sz,dist-sz*1.5);ctx.lineTo(sz,dist-sz*1.5);
+  ctx.closePath();ctx.fill();ctx.restore();
+}
+
+function rr(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
+
+// Mouse
+function cellAt(e){
+  const r=cv.getBoundingClientRect();
+  return{x:Math.floor((e.clientX-r.left-OX)/C),y:Math.floor((e.clientY-r.top-OY)/C)};
+}
+function inB(x,y){return x>=0&&x<COLS&&y>=0&&y<ROWS;}
+let mdown=false;
+
+cv.addEventListener('mousedown',e=>{mdown=true;act(cellAt(e),e.button);});
+cv.addEventListener('mousemove',e=>{
+  const{x,y}=cellAt(e);
+  document.getElementById('cpos').textContent=inB(x,y)?`(${x}, ${y})`:'—';
+  if(!mdown)return;
+  if(tool==='obs'||tool==='era')act({x,y},0);
+});
+cv.addEventListener('mouseup',()=>{mdown=false;});
+cv.addEventListener('mouseleave',()=>{mdown=false;document.getElementById('cpos').textContent='—';});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+
+function act({x,y},btn){
+  if(!inB(x,y))return;
+  const ig=x===goalPos.x&&y===goalPos.y, is=x===startPos.x&&y===startPos.y;
+  if(tool==='car'){if(!ig&&grid[y][x]===0){startPos={x,y,dir:startPos.dir};clearViz();render();}}
+  else if(tool==='goal'){if(!is&&grid[y][x]===0){goalPos={x,y,dir:goalPos.dir};clearViz();render();}}
+  else if(tool==='obs'){if(!ig&&!is){grid[y][x]=1;clearViz();render();}}
+  else if(tool==='era'){grid[y][x]=0;clearViz();render();}
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();if(!animating)startSolve();}
+  else if(e.code==='KeyR')resetAll();
+  else if(e.code==='KeyP'&&!document.getElementById('btn-pause').disabled)togglePause();
+  else if(e.code==='KeyS'&&!document.getElementById('btn-step').disabled)stepOnce();
+  else if(e.code==='Digit1')setTool('obs');
+  else if(e.code==='Digit2')setTool('era');
+  else if(e.code==='Digit3')setTool('car');
+  else if(e.code==='Digit4')setTool('goal');
+  else if(e.code==='ArrowRight'){startPos.dir=0;clearViz();render();}
+  else if(e.code==='ArrowDown'){startPos.dir=1;clearViz();render();}
+  else if(e.code==='ArrowLeft'){startPos.dir=2;clearViz();render();}
+  else if(e.code==='ArrowUp'){startPos.dir=3;clearViz();render();}
+});
+
+function setDot(s){document.getElementById('dot').className='dot '+s;}
+function setMsg(m){document.getElementById('smsg').textContent=m;}
+
+let logN=0;
+function addLog(msg,type='info'){
+  logN++;
+  const b=document.getElementById('log');
+  const t=new Date();
+  const ts=[t.getHours(),t.getMinutes(),t.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+  const d=document.createElement('div');
+  d.className='le '+type;
+  d.innerHTML=`<span class="lts">${ts}</span><span class="lm">${msg}</span>`;
+  b.appendChild(d);b.scrollTop=b.scrollHeight;
+  if(logN>200)b.removeChild(b.firstChild);
+}
+function clearLog(){document.getElementById('log').innerHTML='';logN=0;}
+
+init();
+</script>
+</body>
+</html>
