@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomous Parking — A* Search</title>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <span class="logo-title">Parking Simulator</span>
+        <span class="logo-sub">A* Search</span>
+        <div class="sep"></div>
+        <span class="chip" id="h-trial">Percobaan: 0</span>
+        <span class="chip" id="h-status">Standby</span>
+        
+    </header>
+
+    <div class="layout">
+        <div class="sidebar">
+            <div class="ss">
+                <div class="sl">Kontrol</div>
+                <button class="btn run" id="btn-run">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
+                    Jalankan A*
+                    <span class="kbd">SPC</span>
+                </button>
+                <button class="btn" id="btn-step" disabled>
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 3h2v10H2V3zm4 0l8 5-8 5V3z"/></svg>
+                    Satu Langkah
+                    <span class="kbd">S</span>
+                </button>
+                <button class="btn" id="btn-pause" disabled>
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" id="picon"><path d="M4 2h3v12H4V2zm5 0h3v12H9V2z"/></svg>
+                    <span id="plabel">Pause</span>
+                    <span class="kbd">P</span>
+                </button>
+                <button class="btn" id="btn-reset">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 8a6 6 0 1 1 1.5 4"/><path d="M2 12V8h4"/></svg>
+                    Reset
+                    <span class="kbd">R</span>
+                </button>
+            </div>
+
+            <div class="ss">
+                <div class="sl">Edit Grid</div>
+                <div class="tgrid">
+                    <div class="tbtn on" id="t-obs">Obstacle</div>
+                    <div class="tbtn" id="t-era">Hapus</div>
+                    <div class="tbtn" id="t-car">Mobil</div>
+                    <div class="tbtn" id="t-goal">Parkir</div>
+                </div>
+            </div>
+
+            <div class="ss">
+                <div class="sl">Statistik</div>
+                <div class="stat"><span class="sk">Node dikunjungi</span><span class="sv a" id="s-exp">0</span></div>
+                <div class="stat"><span class="sk">Open set</span><span class="sv" id="s-open">0</span></div>
+                <div class="stat"><span class="sk">Panjang jalur</span><span class="sv g" id="s-path">—</span></div>
+                <div class="stat"><span class="sk">Langkah animasi</span><span class="sv b" id="s-step">—</span></div>
+                <div class="stat"><span class="sk">Waktu pencarian</span><span class="sv" id="s-time">—</span></div>
+                <div class="prog"><div class="prog-i" id="prog"></div></div>
+            </div>
+        </div>
+
+        <div class="canvas-wrap">
+            <div class="ctbar">
+                <span id="tool-hint">Klik untuk tambah obstacle</span>
+                <div class="ctsep"></div>
+                <span id="cpos">—</span>
+                <span style="margin-left:auto;font-size:11px;color:var(--faint)">Arrow ← → ↑ ↓ ubah arah · 1–4 ganti mode</span>
+            </div>
+            <div class="canvas-scroll">
+                <canvas id="cv"></canvas>
+            </div>
+            <div class="sbar">
+                <div class="dot" id="dot"></div>
+                <span id="smsg">Atur obstacle dulu, lalu tekan Space.</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
